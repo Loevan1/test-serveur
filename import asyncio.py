@@ -55,8 +55,9 @@ async def handler(websocket):
     
 
 async def main():
+    port = int(os.environ.get("PORT", 8765)) 
     print("🔄 Lancement du serveur WebSocket...")
-    async with websockets.serve(handler, "0.0.0.0", 8765):
+    async with websockets.serve(handler, port, 8765):
         print("✅ Serveur WebSocket en ligne sur ws://localhost:8765")
         print(websockets.__version__)
         await asyncio.Future()  # Boucle infinie
