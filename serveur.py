@@ -3,9 +3,10 @@ import asyncio
 import websockets
 import json
 import os
-
+from aiohttp import web
 SCORES_FILE = "scores.json"
-
+async def index(request):
+    return web.Response(text="Serveur WebSocket actif ✅", content_type='text/plain')
 # Charger les scores depuis le fichier
 def charger_scores():
     if os.path.exists(SCORES_FILE):
@@ -64,4 +65,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
