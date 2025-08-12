@@ -1,12 +1,12 @@
 # serveur.py
-import os
-import json
 import asyncio
-from aiohttp import web
+import websockets
+import json
+import os
 
 SCORES_FILE = "scores.json"
 
-# Gestion des scores
+# Charger les scores depuis le fichier
 def charger_scores():
     if os.path.exists(SCORES_FILE):
         with open(SCORES_FILE, "r") as f:
@@ -24,51 +24,43 @@ def enregistrer_score(pseudo, score):
         scores.append({"pseudo": pseudo, "score": score})
     with open(SCORES_FILE, "w") as f:
         json.dump(scores, f, indent=2)
-
 def get_classement():
     scores = charger_scores()
-    return sorted(scores, key=lambda x: x["score"], reverse=True)
+    classement = sorted(scores, key=lambda x: x["score"], reverse=True)
+    return classement
 
-# Handler WebSocket
-async def websocket_handler(request):
-    ws = web.WebSocketResponse()
-    await ws.prepare(request)
+async def handler(websocket):
+    
+    print("il y a une connexion")
+    
+    async for message in websocket:
+        
+        data = json.loads(message)
+        pseudo = data.get("pseudo")
+        score = data.get("score")
+        print(f"{pseudo} a {score} points")
+        enregistrer_score(pseudo, score)
+        classement = get_classement()
+        classement_str = ""
+        top_10 = classement[:10]
+        for i, joueur in enumerate(top_10, start=1):
+            ligne = f"{i}.  {joueur['pseudo']} - {joueur['score']} points"
+            classement_str += ligne + "\n"
 
-    print("✅ Connexion WebSocket ouverte")
+        await websocket.send(classement_str.strip()) 
+        
+        
+    
+            
+    
 
-    async for msg in ws:
-        if msg.type == web.WSMsgType.TEXT:
-            data = json.loads(msg.data)
-            pseudo = data.get("pseudo")
-            score = data.get("score")
-            print(f"{pseudo} a {score} points")
-
-            enregistrer_score(pseudo, score)
-            classement = get_classement()
-
-            top_10 = classement[:10]
-            classement_str = "\n".join(
-                f"{i+1}. {j['pseudo']} - {j['score']} points"
-                for i, j in enumerate(top_10)
-            )
-            await ws.send_str(classement_str.strip())
-
-        elif msg.type == web.WSMsgType.ERROR:
-            print(f"⚠ Erreur WS: {ws.exception()}")
-
-    print("❌ Connexion WebSocket fermée")
-    return ws
-
-# Route HTTP pour test
-async def index(request):
-    return web.Response(text="Serveur WebSocket en ligne", content_type="text/plain")
-
-# Création app aiohttp
-app = web.Application()
-app.router.add_get("/", index)
-app.router.add_get("/ws", websocket_handler)
+async def main():
+    port = int(os.environ.get("PORT", 8080)) 
+    print("🔄 Lancement du serveur WebSocket...")
+    async with websockets.serve(handler, "0.0.0.0", port):
+        
+        print(websockets.__version__)
+        await asyncio.Future()  # Boucle infinie
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    web.run_app(app, host="0.0.0.0", port=port)
-
+    asyncio.run(main())
